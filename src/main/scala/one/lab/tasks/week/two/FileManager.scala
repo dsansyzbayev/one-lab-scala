@@ -3,7 +3,7 @@ package one.lab.tasks.week.two
 import java.nio.file.Files
 import java.nio.file.Paths
 import scala.io.StdIn.readLine
-
+import scala.io.Source
 
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
@@ -33,7 +33,11 @@ object FileManager extends App {
   case class ListAllContentCommand()          extends Command
   case class CurrentDirectoryCommand()        extends Command
 
-  case class ChangeDirectoryCommand(val destination: String) extends Command {
+  case class OutputFileCommand(val fileName: String)             extends Command
+  case class DeleteFileCommand(val fileName: String)             extends Command
+  case class CreateNewFileCommand(val fileName: String)          extends Command
+  case class CreateNewDirectoryCommand(val directoryName: String)extends Command
+  case class ChangeDirectoryCommand(val destination: String)     extends Command {
     override val isSubstitutive: Boolean = true
   }
 
@@ -98,12 +102,44 @@ object FileManager extends App {
     currPath.path
   }
 
+  def createANewFile(fileName: String): String = {
+    val filePath = currPath.path
+    val path = Paths.get(s"$filePath/$fileName")
+    Files.createFile(path)
+    s"$fileName was created"
+  }
+
+  def deleteFile(fileName: String): String = {
+    val filePath = currPath.path
+    val path = Paths.get(s"$filePath/$fileName")
+    println(path)
+    if(Files.deleteIfExists(path)) s"$fileName was deleted" else "file does not exist"
+  }
+
+  def createDirectory(directoryName: String): String = {
+    val filePath = currPath.path
+    val path = Paths.get(s"$filePath/$directoryName")
+    Files.createDirectory(path)
+    s"$directoryName was created"
+  }
+
+  def outputFile(fileName: String): String = {
+    val filePath = currPath.path
+    val source =Source.fromFile(s"$filePath/$fileName")
+    val lines = try source.mkString finally source.close()
+    lines
+  }
+
   def parseCommand(input: String): Command = input match {
     case str if str.startsWith("dir") => ListDirectoryCommand()
     case str if str.startsWith("cd") => ChangeDirectoryCommand(str.substring(str.lastIndexOf(" ")+1))
     case str if str.startsWith("ll") => ListAllContentCommand()
     case str if str.startsWith("ls") => ListFilesCommand()
     case str if str.startsWith("pwd") =>CurrentDirectoryCommand()
+    case str if str.startsWith("touch") => CreateNewFileCommand(str.substring(str.lastIndexOf(" ")+1))
+    case str if str.startsWith("rm") => DeleteFileCommand(str.substring(str.lastIndexOf(" ") + 1))
+    case str if str.startsWith("mkdir") => CreateNewDirectoryCommand(str.substring(str.lastIndexOf(" ") + 1))
+    case str if str.startsWith("cat") => OutputFileCommand(str.substring(str.lastIndexOf(" ")+1))
   }
 
   def handleCommand(command: Command, currentPath: String): String = command match {
@@ -112,6 +148,10 @@ object FileManager extends App {
     case ListAllContentCommand() => getAllContent(currentPath).mkString("\n")
     case ChangeDirectoryCommand(destination) => changePath(currentPath, destination).toString
     case CurrentDirectoryCommand() => getCurrentDirectory()
+    case CreateNewFileCommand(fileName) => createANewFile(fileName)
+    case DeleteFileCommand(fileName) => deleteFile(fileName)
+    case CreateNewDirectoryCommand(directoryName) => createDirectory(directoryName)
+    case OutputFileCommand(fileName) => outputFile(fileName)
   }
 
   def main(basePath: String): Unit = {

@@ -51,14 +51,17 @@ object Githuber extends App {
   }
 
   def getUserInfo(username: String): Unit = {
-    val user = Await.result(getGithubUser(username), 5.seconds)
-    val userRepos = Await.result(
-      getUserRepositories(s"https://api.github.com/users/$username/repos"),
-      5.seconds)
-    println(s"${user.login} has ${user.public_repos} repositories")
-    for (repo <- userRepos)
-      println(
-        s"${repo.name}: has ${repo.stargazers_count} starts, ${repo.size} KB size, repo is ${if (repo.fork) "forked" else "not forked"}")
+
+    getGithubUser(username).onComplete {
+      case Success(user) =>
+        println(s"${user.login} has ${user.public_repos} repositories")
+        getUserRepositories(s"https://api.github.com/users/${user.login}/repos").onComplete {
+          case Success(repos) => for(repo <- repos) println(s"${repo.name}: has ${repo.stargazers_count} starts, ${repo.size} KB size, repo is ${if (repo.fork) "forked" else "not forked"}")
+          case Failure(e) =>println(e.getMessage)
+        }
+      case Failure(e) => println(e.getMessage)
+    }
+
   }
 
   getUserInfo("dsansyzbayev")

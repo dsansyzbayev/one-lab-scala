@@ -34,19 +34,16 @@ object Githuber extends App {
 
   //  https://api.github.com/users/{$USER}
   def getGithubUser(username: String): Future[GithubUser] = {
-    val response = get(s"https://api.github.com/users/$username")(
-      system,
-      materializer,
-      executionContext)
-    response.flatMap { body =>
-      Future { parse(body).extract[GithubUser] }
+    val response = get(s"https://api.github.com/users/$username")
+    response.map { body =>
+      parse(body).extract[GithubUser]
     }
   }
 
   def getUserRepositories(repoUrl: String): Future[List[GithubRepository]] = {
-    val response = get(repoUrl)(system, materializer, executionContext)
-    response.flatMap { body =>
-      Future { parse(body).extract[List[GithubRepository]] }
+    val response = get(repoUrl)
+    response.map { body =>
+      parse(body).extract[List[GithubRepository]]
     }
   }
 
@@ -55,10 +52,14 @@ object Githuber extends App {
     getGithubUser(username).onComplete {
       case Success(user) =>
         println(s"${user.login} has ${user.public_repos} repositories")
-        getUserRepositories(s"https://api.github.com/users/${user.login}/repos").onComplete {
-          case Success(repos) => for(repo <- repos) println(s"${repo.name}: has ${repo.stargazers_count} starts, ${repo.size} KB size, repo is ${if (repo.fork) "forked" else "not forked"}")
-          case Failure(e) =>println(e.getMessage)
-        }
+        getUserRepositories(s"https://api.github.com/users/${user.login}/repos")
+          .onComplete {
+            case Success(repos) =>
+              for (repo <- repos)
+                println(
+                  s"${repo.name}: has ${repo.stargazers_count} starts, ${repo.size} KB size, repo is ${if (repo.fork) "forked" else "not forked"}")
+            case Failure(e) => println(e.getMessage)
+          }
       case Failure(e) => println(e.getMessage)
     }
 
